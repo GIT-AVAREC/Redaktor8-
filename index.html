@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>HTML Редактор — GitHub & Firebase</title>
+  <style>
+    :root {
+      --bg-main: #0b1120;
+      --bg-bar: #151f33;
+      --bg-btn: #25334d;
+      --bg-btn-hover: #314364;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent-green: #22c55e;
+      --accent-blue: #0ea5e9;
+      --accent-red: #ef4444;
+      --accent-gold: #fbbf24;
+      --border: #27354f;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-main);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      background: var(--bg-bar);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      color: var(--accent-green);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .status.error {
+      color: #f87171;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .action-row {
+      background: var(--bg-bar);
+      padding: 8px 12px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    button {
+      background: var(--bg-btn);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s ease, transform 0.05s ease, opacity 0.2s ease;
+    }
+
+    button:active {
+      transform: scale(0.98);
+      background: var(--bg-btn-hover);
+    }
+
+    .toolbar {
+      background: var(--bg-bar);
+      padding: 8px 12px;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border);
+      scrollbar-width: none;
+    }
+
+    .toolbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .key-btn {
+      min-width: 44px;
+      padding: 8px 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 14px;
+      color: #38bdf8;
+      flex-shrink: 0;
+    }
+
+    .key-btn.gold {
+      color: var(--accent-gold);
+    }
+
+    .editor-wrap {
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    textarea#codeEditor {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-main);
+      color: var(--text-main);
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    textarea#codeEditor::placeholder {
+      color: var(--text-muted);
+    }
+
+    .bottom-bar {
+      background: var(--bg-bar);
+      border-top: 1px solid var(--border);
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-clear {
+      background: var(--accent-red);
+      border-color: #dc2626;
+      color: #ffffff;
+      padding: 12px;
+      font-size: 14px;
+    }
+
+    .btn-run {
+      background: var(--accent-blue);
+      border-color: #0284c7;
+      color: #ffffff;
+      padding: 12px;
+      font-size: 14px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.82);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 200;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-bar);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+    }
+
+    .modal-body {
+      padding: 12px 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .modal-body textarea,
+    .modal-body input {
+      width: 100%;
+      background: var(--bg-main);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+    }
+
+    /* Полноэкранный браузерный оверлей (100vw x 100dvh) */
+    .browser-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
+      background: #0b1120;
+      z-index: 150;
+      display: none;
+      flex-direction: column;
+    }
+
+    .browser-overlay.open {
+      display: flex;
+    }
+
+    /* Прозрачная стеклянная панель — исчезает через 2 секунды */
+    .browser-bar {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      z-index: 170;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45);
+      border-radius: 16px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(-10px) scale(0.98);
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    .browser-bar.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .browser-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .browser-bar button {
+      background: rgba(30, 41, 59, 0.62);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: #f8fafc;
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-size: 13px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .browser-bar button:active {
+      background: rgba(56, 189, 248, 0.28);
+      border-color: rgba(56, 189, 248, 0.55);
+    }
+
+    .browser-url {
+      width: 100%;
+      background: rgba(11, 17, 32, 0.6);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .browser-stage {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: #0f172a;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      overflow: auto;
+    }
+
+    .browser-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #ffffff;
+      transition: width 0.2s ease;
+    }
+
+    .browser-frame.mobile-mode {
+      width: 390px;
+      max-width: 100%;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(30, 41, 59, 0.92);
+      backdrop-filter: blur(10px);
+      color: #f8fafc;
+      border: 1px solid rgba(56, 189, 248, 0.6);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 250;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div id="statusText" class="status">✓ Код в порядке</div>
+    <div class="top-actions">
+      <button id="btnFirebase" type="button">🔥 Firebase</button>
+      <button id="btnGitHub" type="button">⚙️ GitHub</button>
+      <button id="btnSaveHtml" type="button">💾 Сохранить .html</button>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button id="btnCopy" type="button">📋 Копировать</button>
+    <button id="btnPaste" type="button">📥 Вставить</button>
+    <button id="btnShare" type="button">📤 Поделиться</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="key-btn" type="button" data-insert="<">&lt;</button>
+    <button class="key-btn" type="button" data-insert="/">/</button>
+    <button class="key-btn" type="button" data-insert="=">=</button>
+    <button class="key-btn" type="button" data-insert="{">{</button>
+    <button class="key-btn" type="button" data-insert="}">}</button>
+    <button class="key-btn gold" type="button" data-insert='class=""' data-offset="-1">class</button>
+    <button class="key-btn gold" type="button" data-insert='style=""' data-offset="-1">style</button>
+    <button class="key-btn" type="button" data-insert="<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=&quot;UTF-8&quot;>\n  <title>Страница</title>\n</head>\n<body>\n  \n</body>\n</html>" data-offset="-16">html</button>
+  </div>
+
+  <div class="editor-wrap">
+    <textarea id="codeEditor" placeholder="Начни писать код..."></textarea>
+  </div>
+
+  <div class="bottom-bar">
+    <button id="btnClear" class="btn-clear" type="button">Очистить</button>
+    <button id="btnRun" class="btn-run" type="button">ЗАПУСТИТЬ</button>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Полноэкранный браузерный оверлей -->
+  <div id="browserOverlay" class="browser-overlay">
+    <div id="browserBar" class="browser-bar">
+      <div class="browser-bar-row">
+        <button id="btnBrowserBack" type="button">← Назад в редактор</button>
+        <button id="btnBrowserReload" type="button">↻</button>
+        <button id="btnBrowserViewport" type="button">📱 Мобильный</button>
+      </div>
+      <div class="browser-bar-row">
+        <button id="btnBrowserOpenFile" type="button">📂 Открыть файл</button>
+        <button id="btnBrowserFullscreen" type="button">⛶ Полный экран</button>
+      </div>
+      <div id="browserUrl" class="browser-url">file://index 2.html</div>
+    </div>
+
+    <div id="browserStage" class="browser-stage">
+      <iframe
+        id="browserFrame"
+        class="browser-frame"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-downloads"
+      ></iframe>
+    </div>
+    <input id="browserFileInput" type="file" accept=".html,.htm,.txt,.svg,.xml" style="display:none" />
+  </div>
+
+  <!-- Модальное окно для выбора имени файла перед сохранением -->
+  <div id="saveModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Сохранить HTML-файл</span>
+        <button id="closeSaveModal" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <label for="saveFileNameInput">Введите название файла:</label>
+        <input id="saveFileNameInput" type="text" value="index.html" placeholder="Например: index.html" />
+        <button id="confirmSaveHtmlBtn" class="btn-run" type="button">💾 Скачать файл</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно для надёжной вставки на iOS / Safari -->
+  <div id="pasteModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Вставить код</span>
+        <button id="closePasteModal" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <textarea id="pasteArea" rows="5" placeholder="Нажмите «Вставить» в меню телефона или Ctrl/Cmd + V..."></textarea>
+        <button id="confirmPasteBtn" class="btn-run" type="button">Вставить в редактор</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно Firebase -->
+  <div id="firebaseModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Firebase SDK & Config (whatsapp-fc91e)</span>
+        <button id="closeFirebaseModal" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Имя файла в Firebase Storage:</label>
+        <input id="fbFileName" type="text" value="index.html" />
+        <textarea id="firebaseSnippet" rows="13" readonly></textarea>
+        <button id="insertFirebaseBtn" class="btn-run" type="button">Вставить Firebase блок в редактор</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно GitHub Pages -->
+  <div id="githubModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Публикация на GitHub Pages</span>
+        <button id="closeGitHubModal" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div>1. Нажмите <strong>«💾 Сохранить .html»</strong> и убедитесь, что файл называется <strong>index.html</strong>.</div>
+        <div>2. Загрузите <strong>index.html</strong> в корень репозитория GitHub.</div>
+        <div>3. В репозитории откройте <strong>Settings → Pages</strong>, выберите ветку <strong>main</strong> и папку <strong>/ (root)</strong>.</div>
+        <button id="downloadGithubIndex" class="btn-run" type="button">Скачать готовый index.html</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const editor = document.getElementById("codeEditor");
+    const statusText = document.getElementById("statusText");
+    const toast = document.getElementById("toast");
+    const STORAGE_KEY = "github_firebase_html_editor_v1";
+
+    // Конфиг Firebase для проекта whatsapp-fc91e
+    const firebaseConfig = {
+      apiKey: "AIzaSyDwGWAMY3ivKfZpZLQ87kB7tnj9GS3kCvY",
+      authDomain: "whatsapp-fc91e.firebaseapp.com",
+      projectId: "whatsapp-fc91e",
+      storageBucket: "whatsapp-fc91e.firebasestorage.app",
+      messagingSenderId: "245791575033",
+      appId: "1:245791575033:web:3255c5f20c3b3bddcf4b28",
+      measurementId: "G-M7YJSTX4EX"
+    };
+
+    const firebaseSnippetText = `<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-analytics.js";
+  import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-storage.js";
+
+  const firebaseConfig = ${JSON.stringify(firebaseConfig, null, 2)};
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const storage = getStorage(app);
+<\/script>`;
+
+    document.getElementById("firebaseSnippet").value = firebaseSnippetText;
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    function validateCode(code) {
+      const braces = { "{": "}", "(": ")", "[": "]" };
+      const stack = [];
+      for (const ch of code) {
+        if (braces[ch]) stack.push(braces[ch]);
+        else if (Object.values(braces).includes(ch)) {
+          if (stack.pop() !== ch) {
+            statusText.textContent = "✕ Проверьте скобки";
+            statusText.classList.add("error");
+            return;
+          }
+        }
+      }
+      if (stack.length > 0) {
+        statusText.textContent = "✕ Незакрытая скобка";
+        statusText.classList.add("error");
+        return;
+      }
+      statusText.textContent = "✓ Код в порядке";
+      statusText.classList.remove("error");
+    }
+
+    function saveDraft() {
+      localStorage.setItem(STORAGE_KEY, editor.value);
+      validateCode(editor.value);
+    }
+
+    function insertAtCursor(text, offset = 0) {
+      const start = editor.selectionStart ?? editor.value.length;
+      const end = editor.selectionEnd ?? editor.value.length;
+      editor.value = editor.value.slice(0, start) + text + editor.value.slice(end);
+      const pos = start + text.length + offset;
+      editor.focus();
+      editor.setSelectionRange(pos, pos);
+      saveDraft();
+    }
+
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved !== null) {
+      editor.value = saved;
+      validateCode(saved);
+    }
+
+    editor.addEventListener("input", saveDraft);
+
+    document.querySelectorAll(".key-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const text = btn.getAttribute("data-insert") || "";
+        const offset = Number(btn.getAttribute("data-offset") || 0);
+        insertAtCursor(text, offset);
+      });
+    });
+
+    document.getElementById("btnCopy").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(editor.value);
+        showToast("Скопировано");
+      } catch {
+        editor.select();
+        document.execCommand("copy");
+        showToast("Скопировано");
+      }
+    });
+
+    // Надёжная вставка с поддержкой iOS / Safari / file://
+    const pasteModal = document.getElementById("pasteModal");
+    const pasteArea = document.getElementById("pasteArea");
+
+    function openPasteModal() {
+      pasteArea.value = "";
+      pasteModal.classList.add("open");
+      setTimeout(() => pasteArea.focus(), 50);
+    }
+
+    document.getElementById("btnPaste").addEventListener("click", async () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text) {
+            insertAtCursor(text);
+            showToast("Вставлено");
+            return;
+          }
+        }
+      } catch {
+        // Переходим к модальному окну вставки
+      }
+      openPasteModal();
+    });
+
+    pasteArea.addEventListener("paste", () => {
+      setTimeout(() => {
+        if (pasteArea.value) {
+          insertAtCursor(pasteArea.value);
+          pasteModal.classList.remove("open");
+          showToast("Вставлено");
+        }
+      }, 20);
+    });
+
+    document.getElementById("confirmPasteBtn").addEventListener("click", () => {
+      if (pasteArea.value) {
+        insertAtCursor(pasteArea.value);
+        showToast("Вставлено");
+      }
+      pasteModal.classList.remove("open");
+    });
+
+    document.getElementById("closePasteModal").addEventListener("click", () => {
+      pasteModal.classList.remove("open");
+    });
+
+    document.getElementById("btnShare").addEventListener("click", async () => {
+      const file = new File([editor.value], "index.html", { type: "text/html" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ title: "index.html", text: editor.value, files: [file] });
+          return;
+        } catch {}
+      }
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "HTML код", text: editor.value });
+          return;
+        } catch {}
+      }
+      await navigator.clipboard.writeText(editor.value).catch(() => {});
+      showToast("Код скопирован для отправки");
+    });
+
+    // Сохранение файла с выбором названия перед скачиванием
+    const saveModal = document.getElementById("saveModal");
+    const saveFileNameInput = document.getElementById("saveFileNameInput");
+    let currentLabelName = "index 2.html";
+
+    function openSaveModal(defaultName = "index.html") {
+      saveFileNameInput.value = defaultName;
+      saveModal.classList.add("open");
+      setTimeout(() => {
+        saveFileNameInput.focus();
+        const dotIdx = defaultName.lastIndexOf(".");
+        saveFileNameInput.setSelectionRange(0, dotIdx > 0 ? dotIdx : defaultName.length);
+      }, 50);
+    }
+
+    function downloadHtmlFile(rawName) {
+      let fileName = (rawName || "index.html").trim() || "index.html";
+      if (!/\.(html|htm)$/i.test(fileName)) {
+        fileName += ".html";
+      }
+      const blob = new Blob([editor.value], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast(`Файл ${fileName} сохранён`);
+    }
+
+    document.getElementById("btnSaveHtml").addEventListener("click", () => {
+      openSaveModal(currentLabelName || "index.html");
+    });
+
+    document.getElementById("downloadGithubIndex").addEventListener("click", () => {
+      openSaveModal("index.html");
+    });
+
+    document.getElementById("confirmSaveHtmlBtn").addEventListener("click", () => {
+      downloadHtmlFile(saveFileNameInput.value);
+      saveModal.classList.remove("open");
+    });
+
+    saveFileNameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        downloadHtmlFile(saveFileNameInput.value);
+        saveModal.classList.remove("open");
+      }
+    });
+
+    document.getElementById("closeSaveModal").addEventListener("click", () => {
+      saveModal.classList.remove("open");
+    });
+
+    document.getElementById("btnClear").addEventListener("click", () => {
+      editor.value = "";
+      saveDraft();
+      showToast("Очищено");
+    });
+
+    // Полноэкранный браузерный режим (ЗАПУСТИТЬ)
+    const browserOverlay = document.getElementById("browserOverlay");
+    const browserBar = document.getElementById("browserBar");
+    const browserFrame = document.getElementById("browserFrame");
+    const browserUrl = document.getElementById("browserUrl");
+    const browserFileInput = document.getElementById("browserFileInput");
+    const btnBrowserViewport = document.getElementById("btnBrowserViewport");
+    let currentBlobUrl = null;
+    let mobileViewport = false;
+    let lastTap = null;
+    let barHideTimer = null;
+
+    function hideBrowserBarNow() {
+      clearTimeout(barHideTimer);
+      barHideTimer = null;
+      browserBar.classList.remove("visible");
+    }
+
+    function showBrowserBarTwoSec() {
+      clearTimeout(barHideTimer);
+      browserBar.classList.add("visible");
+      barHideTimer = setTimeout(() => {
+        hideBrowserBarNow();
+      }, 2000);
+    }
+
+    browserBar.querySelectorAll("button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (browserBar.classList.contains("visible")) {
+          showBrowserBarTwoSec();
+        }
+      });
+    });
+
+    // Двойной тап по оверлею
+    browserOverlay.addEventListener("touchstart", (e) => {
+      if (e.target.closest("#browserBar")) return;
+      if (!e.changedTouches || e.changedTouches.length !== 1) return;
+      const t = e.changedTouches[0];
+      const now = Date.now();
+
+      if (
+        lastTap &&
+        now - lastTap.time < 360 &&
+        Math.hypot(t.clientX - lastTap.x, t.clientY - lastTap.y) < 35
+      ) {
+        lastTap = null;
+        showBrowserBarTwoSec();
+      } else {
+        lastTap = { time: now, x: t.clientX, y: t.clientY };
+      }
+    }, { passive: true, capture: true });
+
+    browserOverlay.addEventListener("dblclick", (e) => {
+      if (e.target.closest("#browserBar")) return;
+      showBrowserBarTwoSec();
+    }, true);
+
+    // Сообщение о двойном тапе изнутри iframe
+    window.addEventListener("message", (event) => {
+      if (event.data && event.data.type === "SHOW_BROWSER_BAR") {
+        showBrowserBarTwoSec();
+      }
+    });
+
+    function injectDoubleTapListener(htmlContent) {
+      const helperScript = `<script>
+        (function() {
+          let last = null;
+          window.addEventListener("touchstart", function(e) {
+            if (!e.changedTouches || e.changedTouches.length !== 1) return;
+            const t = e.changedTouches[0];
+            const now = Date.now();
+            if (last && now - last.time < 360 && Math.hypot(t.clientX - last.x, t.clientY - last.y) < 35) {
+              last = null;
+              window.parent.postMessage({ type: "SHOW_BROWSER_BAR" }, "*");
+            } else {
+              last = { time: now, x: t.clientX, y: t.clientY };
+            }
+          }, { passive: true, capture: true });
+          window.addEventListener("dblclick", function() {
+            window.parent.postMessage({ type: "SHOW_BROWSER_BAR" }, "*");
+          }, true);
+        })();
+      <\/script>`;
+      if (/<\/body>/i.test(htmlContent)) {
+        return htmlContent.replace(/<\/body>/i, helperScript + "</body>");
+      }
+      return htmlContent + helperScript;
+    }
+
+    function renderInBrowser(htmlContent, label = "file://index 2.html") {
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
+      }
+      const finalHtml = injectDoubleTapListener(htmlContent);
+      const blob = new Blob([finalHtml], { type: "text/html;charset=utf-8" });
+      currentBlobUrl = URL.createObjectURL(blob);
+      browserUrl.textContent = label;
+      browserFrame.src = currentBlobUrl;
+      browserOverlay.classList.add("open");
+      showBrowserBarTwoSec();
+    }
+
+    document.getElementById("btnRun").addEventListener("click", () => {
+      renderInBrowser(editor.value, `file://${currentLabelName}`);
+    });
+
+    document.getElementById("btnBrowserReload").addEventListener("click", () => {
+      renderInBrowser(editor.value, browserUrl.textContent || `file://${currentLabelName}`);
+      showToast("Перезагружено");
+    });
+
+    btnBrowserViewport.addEventListener("click", () => {
+      mobileViewport = !mobileViewport;
+      browserFrame.classList.toggle("mobile-mode", mobileViewport);
+      btnBrowserViewport.textContent = mobileViewport ? "🖥️ Десктоп" : "📱 Мобильный";
+    });
+
+    document.getElementById("btnBrowserOpenFile").addEventListener("click", () => {
+      browserFileInput.click();
+    });
+
+    browserFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      currentLabelName = file.name;
+      editor.value = text;
+      saveDraft();
+      renderInBrowser(text, `file://${file.name}`);
+      browserFileInput.value = "";
+    });
+
+    document.getElementById("btnBrowserFullscreen").addEventListener("click", async () => {
+      try {
+        if (!document.fullscreenElement) {
+          await browserOverlay.requestFullscreen();
+        } else {
+          await document.exitFullscreen();
+        }
+      } catch {
+        showToast("Полноэкранный режим активен");
+      }
+    });
+
+    document.getElementById("btnBrowserBack").addEventListener("click", async () => {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => {});
+      }
+      hideBrowserBarNow();
+      browserOverlay.classList.remove("open");
+      browserFrame.src = "about:blank";
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
+        currentBlobUrl = null;
+      }
+    });
+
+    const firebaseModal = document.getElementById("firebaseModal");
+    document.getElementById("btnFirebase").addEventListener("click", () => firebaseModal.classList.add("open"));
+    document.getElementById("closeFirebaseModal").addEventListener("click", () => firebaseModal.classList.remove("open"));
+    document.getElementById("insertFirebaseBtn").addEventListener("click", () => {
+      insertAtCursor(firebaseSnippetText);
+      firebaseModal.classList.remove("open");
+      showToast("Firebase блок вставлен");
+    });
+
+    const githubModal = document.getElementById("githubModal");
+    document.getElementById("btnGitHub").addEventListener("click", () => githubModal.classList.add("open"));
+    document.getElementById("closeGitHubModal").addEventListener("click", () => githubModal.classList.remove("open"));
+  </script>
+</body>
+</html>
